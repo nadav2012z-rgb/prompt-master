@@ -8,8 +8,8 @@ Never invent requirements, names, numbers or features the user did not mention. 
 Keep it about as short as the job allows. Reply with the rewritten prompt only: no preamble, no quotes, no explanation.`
 
 const USAGE = 'Usage: /w <your rough prompt>'
-const TYPED = /^\/w(?:\s+([\s\S]*))?$/
-const TYPED_DRAFT = /^\/w\s+(\S[\s\S]*)$/
+const TYPED = /^\/(?:prompt-master:|prompt-rewriter:)?w(?:\s+([\s\S]*))?$/
+const TYPED_DRAFT = /^\/(?:prompt-master:|prompt-rewriter:)?w\s+(\S[\s\S]*)$/
 const POLL_MS = 300
 const PAUSE_MS = 1200
 let timer: { cancel: () => void } | undefined
@@ -39,13 +39,8 @@ async function rewriteIntoBox($: EngineInterface, rough: string, expected = ''):
 }
 
 export const register: Register = on => {
+  // /w itself is commands/w.md, so it is listed like any plugin command; the hooks below answer it
   on('session.start', async ($, e, next) => {
-    await $.command.register({
-      name: 'w',
-      description: 'Rewrite your prompt into a clearer one and put it back in the box to review',
-      argumentHint: '<your rough prompt>',
-    })
-
     // typing "/w <prompt>" and pausing rewrites the box in place, before anything is sent
     let last = ''
     let since = 0
@@ -70,7 +65,8 @@ export const register: Register = on => {
       $.ui.status('/w: rewriting...')
       try {
         const msg = await rewriteIntoBox($, (m[1] ?? '').trim(), text)
-        if (!msg.startsWith('Rewritten prompt is in the box')) $.ui.toast(msg)
+        // "box changed" while typing is silent: more typing, or another tool rewrote the box first
+        if (!msg.startsWith('Rewritten prompt is in the box') && !msg.includes('the box changed')) $.ui.toast(msg)
       } finally {
         $.ui.status(undefined)
         busy = false
@@ -81,9 +77,9 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'w' }, async ($, e) => {
-    return { text: await rewriteIntoBox($, e.args.trim()) }
-  })
+  for (const command of ['w', 'prompt-master:w', 'prompt-rewriter:w']) {
+    on('command.run', { command }, async ($, e) => ({ text: await rewriteIntoBox($, e.args.trim()) }))
+  }
 
   // fallback: a surface that sends "/w ..." as plain text instead of running the command
   on('prompt.submit', async ($, e, next) => {

@@ -31,3 +31,16 @@ test('a normal prompt passes through untouched', async ($, on) => {
   await $.prompt.submit({ text: '/wiki is not /w' })
   expect(got).toBe('/wiki is not /w')
 })
+
+test('the listed form "/prompt-master:w ..." is caught the same way', async ($, on) => {
+  let filled = ''
+  on('model.complete', () => ({ value: { isAnswered: true, text: 'Better prompt', usage } }))
+  on('prompt.read', () => ({ value: { text: '', cursor: 0 } }))
+  on('prompt.fill', (_, e) => {
+    filled = e.text
+    return { isFilled: true }
+  })
+  const out = await $.command.run({ command: 'prompt-master:w', args: 'make me a site' })
+  expect(filled).toBe('Better prompt')
+  expect(out.text).toContain('press Enter')
+})
