@@ -1,0 +1,5 @@
+{
+  "name": "prompt-master",
+  "owner": { "name": "nadav2012z-rgb" },
+  "plugins": [{ "name": "prompt-master", "source": "./" }]
+}
